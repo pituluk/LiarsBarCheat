@@ -1,7 +1,8 @@
 ﻿using System;
 using UnityEngine;
 using System.Reflection;
-
+using MelonLoader;
+using Il2Cpp;
 public class UIHelper //https://www.unknowncheats.me/forum/unity/285864-beginners-guide-hacking-unity-games.html modified to fit needs
 {
     private float
@@ -75,7 +76,7 @@ public static class ReflectionExtensions
         var field = obj.GetType().GetField(name, bindingFlags);
         return (T)field?.GetValue(obj);
     }
-    public static void SetFieldValue<T>(this object obj, string name,T value)
+    public static void SetFieldValue<T>(this object obj, string name, T value)
     {
         var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
         var field = obj.GetType().GetField(name, bindingFlags);
@@ -85,23 +86,25 @@ public static class ReflectionExtensions
 }
 namespace LiarBar
 {
-    public class Hax : MonoBehaviour
+    public class Hax : MelonMod
     {
         private Rect _boxPos = new Rect(0, 0, 300, 400);
-        private UIHelper _helper = new UIHelper();
+
         private bool _visible = false;
         public void Start()
         {
         }
-        public void Update()
+        public override void OnUpdate()
         {
             if (UnityEngine.Input.GetKeyDown(KeyCode.Insert))
             {
                 _visible = !_visible;
+
             }
         }
-        enum Cards {Devil = -1, None = 0, King = 1, Queen = 2, Ace = 3, Joker = 4 }
-        public void OnGUI()
+        enum Cards { Devil = -1, None = 0, King = 1, Queen = 2, Ace = 3, Joker = 4 }
+        enum ChaosCards { None = 0, King = 1, Queen = 2, Chaos = 3, Master = 4 }
+        public override void OnGUI()
         {
             if (_visible)
             {
@@ -109,101 +112,226 @@ namespace LiarBar
                 {
                     _boxPos.position += Event.current.delta;
                 }
-                _helper.Begin("Cheat", _boxPos.position.x, _boxPos.position.y, 300, 400, 0, 40, 30);
-                if(System.Object.ReferenceEquals(null, Manager.Instance))
+                GUIStyle style = new GUIStyle();
+                style.normal.background = Texture2D.grayTexture;
+
+                GUILayout.BeginArea(new Rect( _boxPos.position.x, _boxPos.position.y, 300, 400),style);
+                GUILayout.BeginVertical();
+                if (Manager.Instance == null)
                 {
-                    _helper.Label("Not in game.");
+                    GUILayout.Label("Not in game.");
+                    GUILayout.EndVertical();
+                    GUILayout.EndArea();
+
                     return;
                 }
+                
                 if (Manager.Instance.GameStarted)
                 {
-                    BlorfGamePlay localPlayer = Manager.Instance.GetLocalPlayer().GetComponent<BlorfGamePlay>();
-                    int revolverBullet = localPlayer.GetFieldValue<int>("revolverbulllet");
-                  //  if (revolverBullet <= 1)
-                   // {
-                        localPlayer.SetFieldValue<int>("revolverbulllet", 5); //either put it in that if to be more legit or just go last bullet always
-                    //}
-                    foreach (PlayerStats pS in Manager.Instance.Players)
+
+                    
+                    if (Manager.Instance.mode == CustomNetworkManager.GameMode.LiarsDeck)
                     {
-                        
-                        if (pS.Dead || pS.Fnished)
-                            continue;
-                        string text = pS.PlayerName + '\n';
-                        foreach (GameObject cardObj in pS.GetComponent<BlorfGamePlay>().Cards)
+                        BlorfGamePlay localPlayer = Manager.Instance.GetLocalPlayer().GetComponent<BlorfGamePlay>();
+                        if (localPlayer != null)
                         {
-                            Card card = cardObj.GetComponent<Card>();
-                            int type = card.cardtype;
-                            bool devil = card.Devil;
-                            bool active = cardObj.activeSelf;
-                            if (active)
+                            int revolverBullet = localPlayer.revolverbulllet;
+                            
+                            localPlayer.revolverbulllet = 5; 
+                                                             
+                        }
+
+                        foreach (PlayerStats pS in Manager.Instance.Players)
+                        {
+
+                            if (pS.Dead || pS.Fnished)
+                                continue;
+                            string text = pS.PlayerName + '\n';
+                            foreach (GameObject cardObj in pS.GetComponent<BlorfGamePlay>().Cards)
                             {
-                                if (type == Manager.Instance.BlorfGame.RoundCard || type == (int)Cards.Joker)
+                                Card card = cardObj.GetComponent<Card>();
+                                int type = card.cardtype;
+                                bool devil = card.Devil;
+                                bool active = cardObj.activeSelf;
+                                if (active)
                                 {
-                                    text += " <color=green>" + ((Cards)type).ToString() + "</color>";
+                                    if (type == Manager.Instance.BlorfGame.RoundCard || type == (int)Cards.Joker)
+                                    {
+                                        text += " <color=green>" + ((Cards)type).ToString("G") + "</color>";
+                                    }
+                                    else
+                                    {
+                                        text += " " + ((Cards)type).ToString("G");
+                                    }
                                 }
                                 else
                                 {
-                                    text += " " + ((Cards)type).ToString();
+                                    text += " <color=red>" + ((Cards)type).ToString("G") + "</color>";
+
                                 }
+                                if (devil)
+                                    text += "(D)";
+                            }
+                            BlorfGamePlay player = pS.GetComponent<BlorfGamePlay>();
+                            int current = player.currentrevoler;
+                            int dies = player.revolverbulllet;
+                            if (current == dies)
+                            {
+                                text += "<color=red> B:" + current + "/" + (dies + 1) + "</color>";
                             }
                             else
                             {
-                                text += " <color=red>" + ((Cards)type).ToString() + "</color>";
+                                text += "<color=green> B:" + current + "/" + (dies + 1) + "</color>";
+                            }
+                            GUILayout.Label(text);
+                        }
+                        string text2 = "Table: ";
+                        foreach (int card in Manager.Instance.BlorfGame.LastRound)
+                        {
+                            if (card == Manager.Instance.BlorfGame.RoundCard || card == (int)Cards.Joker)
+                            {
+                                text2 += " <color=green>" + ((Cards)card).ToString() + "</color>";
+                            }
+                            else
+                            {
+                                text2 += " <color=red>" + ((Cards)card).ToString() + "</color>";
+                            }
+                        }
+                        GUILayout.Label(text2);
+                    }//end Liars Deck
+                    else if (Manager.Instance.mode == CustomNetworkManager.GameMode.LiarsDice)
+                    {
+                        DiceGamePlay localPlayer = Manager.Instance.GetLocalPlayer().GetComponent<DiceGamePlay>();
+                        if (localPlayer == null)
+                        {
+                            GUILayout.Label("Cant get local player.");
+                            GUILayout.EndVertical();
+                            GUILayout.EndArea();
+                            return;
+                        }
+                        int sumOne = 0;
+                        int sumTwo = 0;
+                        int sumThree = 0;
+                        int sumFour = 0;
+                        int sumFive = 0;
+                        int sumSix = 0;
+                        string text = "";
+                        foreach (PlayerStats pS in Manager.Instance.Players)
+                        {
+                            if (pS.Dead || pS.Fnished)
+                                continue;
+                            DiceGamePlay Player = pS.GetComponent<DiceGamePlay>();
+                            text += pS.PlayerName + '\n';
+
+                            foreach (int dice in Player.DiceValues)
+                            {
+                                text += dice.ToString() + ' ';
+                                if (dice == 1)
+                                { sumOne++;
+                                    if (Manager.Instance.DiceGame.DiceMode == DiceGamePlayManager.dicemode.Traditional)
+                                    {
+                                        sumTwo++; sumThree++; sumFour++; sumFive++; sumSix++;
+                                    } }
+                                else if (dice == 2)
+                                { sumTwo++; }
+                                else if (dice == 3)
+                                { sumThree++; }
+                                else if (dice == 4)
+                                { sumFour++; }
+                                else if (dice == 5)
+                                { sumFive++; }
+                                else if (dice == 6)
+                                { sumSix++; }
+                            }
+                            text += '\n';
+                        }
+                        GUILayout.Label($"Sums: \nOnes: {sumOne} Twos: {sumTwo} Threes: {sumThree}\n Fours: {sumFour} Fives: {sumFive} Sixes: {sumSix}");
+                        GUILayout.Label(text);
+                    }
+                    else if (Manager.Instance.mode == CustomNetworkManager.GameMode.LiarsChaos)
+                    {
+                        ChaosGamePlay localPlayer = Manager.Instance.GetLocalPlayer().GetComponent<ChaosGamePlay>();
+                        if (localPlayer == null)
+                        {
+                            GUILayout.Label("Cant get local player.");
+                            GUILayout.EndVertical();
+                            GUILayout.EndArea();
+                            return;
+                        }
+                        foreach (PlayerStats pS in Manager.Instance.Players)
+                        {
+                            if (pS.Dead || pS.Fnished)
+                                continue;
+                            string text = pS.PlayerName + '\n';
+                            foreach (GameObject cardObj in pS.GetComponent<ChaosGamePlay>().Cards)
+                            {
+                                Card card = cardObj.GetComponent<Card>();
+                                int type = card.cardtype;
+                                bool active = cardObj.activeSelf;
+                                if (active)
+                                {
+                                    if (type == Manager.Instance.ChaosGame.RoundCard || type == (int)ChaosCards.Master || type == (int)ChaosCards.Chaos)
+                                    {
+                                        text += " <color=green>" + ((ChaosCards)type).ToString("G") + "</color>";
+                                    }
+                                    else
+                                    {
+                                        text += " " + ((ChaosCards)type).ToString("G");
+                                    }
+                                }
+                                else
+                                {
+                                    text += " <color=red>" + ((ChaosCards)type).ToString("G") + "</color>";
+
+                                }
                                 
                             }
-                            if (devil)
-                                text += "(D)";
+                            ChaosGamePlay player = pS.GetComponent<ChaosGamePlay>();
+                            int current = player.currentrevoler;
+                            int dies = player.revolverbulllet;
+                            if (current == dies)
+                            {
+                                text += "<color=red> B:" + current + "/" + (dies + 1) + "</color>";
+                            }
+                            else
+                            {
+                                text += "<color=green> B:" + current + "/" + (dies + 1) + "</color>";
+                            }
+                            GUILayout.Label(text);
                         }
-                        BlorfGamePlay player = pS.GetComponent<BlorfGamePlay>();
-                        int current = player.GetFieldValue<int>("currentrevoler");
-                        int dies = player.GetFieldValue<int>("revolverbulllet");
-                        if (current == dies) {
-                            text += "<color=red> B:" + current + "/" + (dies+1) + "</color>";
-                        }
-                        else
+                        string text2 = "Table: ";
+                        foreach (int card in Manager.Instance.ChaosGame.LastRound)
                         {
-                            text += "<color=green> B:" + current + "/" + (dies+1) + "</color>";
+                            if (card == Manager.Instance.ChaosGame.RoundCard || card == (int)ChaosCards.Chaos || card == (int)ChaosCards.Master)
+                            {
+                                text2 += " <color=green>" + ((ChaosCards)card).ToString() + "</color>";
+                            }
+                            else
+                            {
+                                text2 += " <color=red>" + ((ChaosCards)card).ToString() + "</color>";
+                            }
                         }
-                        _helper.Label(text);
+                        GUILayout.Label(text2);
                     }
-                    string text2 = "Table: ";
-                    foreach(int card in Manager.Instance.BlorfGame.LastRound)
+                    else
                     {
-                        if (card == Manager.Instance.BlorfGame.RoundCard || card == (int)Cards.Joker)
-                        {
-                            text2 += " <color=green>" + ((Cards)card).ToString() + "</color>";
-                        }
-                        else
-                        {
-                            text2 += " <color=red>" + ((Cards)card).ToString() + "</color>";
-                        }
+                        GUILayout.Label("Unsupported gamemode.");
+                        GUILayout.EndVertical();
+                        GUILayout.EndArea();
                     }
-                    _helper.Label(text2);
                 }
                 else
                 {
-                    _helper.Label("Game not started.");
+                    GUILayout.Label("Game not started.");
+
                 }
+                GUILayout.EndVertical();
+                GUILayout.EndArea();
                 if (Event.current.isMouse)
                     Event.current.Use();
             }
         }
     }
 
-    public class Loader
-    {
-        static UnityEngine.GameObject gameObject;
 
-        public static void Load()
-        {
-            gameObject = new UnityEngine.GameObject();
-            gameObject.AddComponent<Hax>();
-            UnityEngine.Object.DontDestroyOnLoad(gameObject);
-        }
-
-        public static void Unload()
-        {
-            UnityEngine.Object.Destroy(gameObject);
-        }
-    }
 }
