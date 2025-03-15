@@ -173,7 +173,77 @@ namespace LiarBar
                 
                 if (Manager.Instance.GameStarted)
                 {
+                    CustomNetworkManager managerr = ReflectionExtensions.GetFieldValue<CustomNetworkManager>(Manager.Instance, "managerr");
+                    if (managerr.Matchmaking)
+                    {
+                        BlorfMatchMakingGamePlayManager gameManager = Manager.Instance.BlorfGameMatchMaking;
+                        BlorfGamePlayMatchMaking localPlayer = Manager.Instance.GetLocalPlayer().GetComponent<BlorfGamePlayMatchMaking>();
+                        if (localPlayer != null)
+                        {
+                            ReflectionExtensions.SetFieldValue<int>(localPlayer, "revolverbulllet", 5);
+                        }
+                        if (gameManager.DeckMode == BlorfGamePlayManager.deckmode.Basic || gameManager.DeckMode == BlorfGamePlayManager.deckmode.Devil)
+                        {
+                            foreach (PlayerStats pS in Manager.Instance.Players)
+                            {
 
+                                if (pS.Dead || pS.Fnished)
+                                    continue;
+                                string text = pS.PlayerName + '\n';
+                                foreach (GameObject cardObj in pS.GetComponent<BlorfGamePlayMatchMaking>().Cards)
+                                {
+                                    Card card = cardObj.GetComponent<Card>();
+                                    int type = card.cardtype;
+                                    bool devil = card.Devil;
+                                    bool active = cardObj.activeSelf;
+                                    if (active)
+                                    {
+                                        if (type == gameManager.RoundCard || type == (int)Cards.Joker || type == (int)Cards.Devil)
+                                        {
+                                            text += " <color=green>" + ((Cards)type).ToString("G") + "</color>";
+                                        }
+                                        else
+                                        {
+                                            text += " " + ((Cards)type).ToString("G");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        text += " <color=red>" + ((Cards)type).ToString("G") + "</color>";
+
+                                    }
+                                    if (devil)
+                                        text += "(D)";
+                                }
+                                BlorfGamePlayMatchMaking player = pS.GetComponent<BlorfGamePlayMatchMaking>();
+                                int current = ReflectionExtensions.GetFieldValue<int>(player, "currentrevoler");
+                                int dies = ReflectionExtensions.GetFieldValue<int>(player, "revolverbulllet");
+                                if (current == dies)
+                                {
+                                    text += "<color=red> B:" + current + "/" + (dies + 1) + "</color>";
+                                }
+                                else
+                                {
+                                    text += "<color=green> B:" + current + "/" + (dies + 1) + "</color>";
+                                }
+                                GUILayout.Label(text);
+                            }
+                            string text2 = "Table: ";
+                            foreach (int card in gameManager.LastRound)
+                            {
+                                if (card == gameManager.RoundCard || card == (int)Cards.Joker || card == (int)Cards.Devil)
+                                {
+                                    text2 += " <color=green>" + ((Cards)card).ToString() + "</color>";
+                                }
+                                else
+                                {
+                                    text2 += " <color=red>" + ((Cards)card).ToString() + "</color>";
+                                }
+                            }
+                            GUILayout.Label(text2);
+                        }//end Liars Deck Matchmaking
+                    }
+                
 
                     if (Manager.Instance.mode == CustomNetworkManager.GameMode.LiarsDeck)
                     {
@@ -199,7 +269,7 @@ namespace LiarBar
                                     bool active = cardObj.activeSelf;
                                     if (active)
                                     {
-                                        if (type == Manager.Instance.BlorfGame.RoundCard || type == (int)Cards.Joker)
+                                        if (type == gameManager.RoundCard || type == (int)Cards.Joker)
                                         {
                                             text += " <color=green>" + ((Cards)type).ToString("G") + "</color>";
                                         }
@@ -225,9 +295,9 @@ namespace LiarBar
                                 GUILayout.Label(text);
                             }
                             string text2 = "Table: ";
-                            foreach (int card in Manager.Instance.BlorfGame.LastRound)
+                            foreach (int card in gameManager.LastRound)
                             {
-                                if (card == Manager.Instance.BlorfGame.RoundCard || card == (int)Cards.Joker)
+                                if (card == gameManager.RoundCard || card == (int)Cards.Joker)
                                 {
                                     text2 += " <color=green>" + ((Cards)card).ToString() + "</color>";
                                 }
@@ -281,7 +351,7 @@ namespace LiarBar
                                     bool active = cardObj.activeSelf;
                                     if (active)
                                     {
-                                        if (type == Manager.Instance.BlorfGame.RoundCard || type == (int)Cards.Joker)
+                                        if (type == gameManager.RoundCard || type == (int)Cards.Joker || type == (int)Cards.Devil)
                                         {
                                             text += " <color=green>" + ((Cards)type).ToString("G") + "</color>";
                                         }
@@ -312,9 +382,9 @@ namespace LiarBar
                                 GUILayout.Label(text);
                             }
                             string text2 = "Table: ";
-                            foreach (int card in Manager.Instance.BlorfGame.LastRound)
+                            foreach (int card in gameManager.LastRound)
                             {
-                                if (card == Manager.Instance.BlorfGame.RoundCard || card == (int)Cards.Joker)
+                                if (card == gameManager.RoundCard || card == (int)Cards.Joker || card == (int)Cards.Devil)
                                 {
                                     text2 += " <color=green>" + ((Cards)card).ToString() + "</color>";
                                 }
@@ -357,7 +427,7 @@ namespace LiarBar
                                 if (dice == 1)
                                 {
                                     sumOne++;
-                                    if (Manager.Instance.DiceGame.DiceMode == DiceGamePlayManager.dicemode.Traditional)
+                                    if (gameManager.DiceMode == DiceGamePlayManager.dicemode.Traditional)
                                     {
                                         sumTwo++; sumThree++; sumFour++; sumFive++; sumSix++;
                                     }
